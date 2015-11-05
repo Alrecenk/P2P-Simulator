@@ -8,6 +8,7 @@
 import java.awt.Color;
 import java.awt.Graphics;
 import java.util.Iterator;
+import java.util.Random;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,9 +20,13 @@ public class Network implements Runnable{
 
 	boolean stopped = false; // Stops the network's thread if set to true.
 
+	Random rand; // A pseudo-random number generator, so well constructed experiments can be replicated.
 	float default_link_rate; // Rate in bytes/time for a link not manually initialized.
 	float latency_per_distance; // Latency is determined by pixel distance between nodes if link is not manually initialized.
-
+	float max_random_latency; // Each link is also given an additional latency at random up to this amount.
+	float packet_drop_chance; // The chance that a packet will be dropped.
+	float clock_desynchronization; // Node clocks maybe be off from the network clock by up to this amount.
+	
 	// Current time in the network.
 	double net_time = 0 ;
 	// Last system time the the network time was updated at.
@@ -31,12 +36,21 @@ public class Network implements Runnable{
 
 	// Initializes a network with the given default values for links.
 	// Also starts the network's thread.
-	public Network(float default_link_rate, float latency_per_distance){
+	public Network(
+			float default_link_rate, 
+			float latency_per_distance, 
+			float max_random_latency,
+			float packet_drop_chance,
+			float clock_desynchronization,
+			int random_seed){
 		this.default_link_rate = default_link_rate;
 		this.latency_per_distance = latency_per_distance;
+		this.max_random_latency = max_random_latency;
+		this.packet_drop_chance = packet_drop_chance;
 		nodes = new ConcurrentHashMap<String, Node>();
 		links = new ConcurrentHashMap<String, Link>();
 		transmit_queue = new PriorityBlockingQueue<Transmission>();
+		rand = new Random(random_seed);
 		Thread t = new Thread(this);
 		t.start();
 	}
@@ -50,6 +64,7 @@ public class Network implements Runnable{
 		n.maximum_flow = 10*rate;
 		n.flow = n.maximum_flow;
 		n.last_time = getTime();
+		n.clock_offset = (rand.nextFloat()*2f-1f)*clock_desynchronization;
 		n.network = this;
 		nodes.put(n.address, n);
 		Thread t = new Thread(n);
@@ -62,9 +77,9 @@ public class Network implements Runnable{
 		links.put(from+"-"+to, new Link(from, to, latency, rate, rate*10, getTime()));
 	}
 
-	// Returns the simulation time since the network started.
+	// Returns the simulation time since the network started. The "network time".
 	// time_speed is public and can be adjusted at run time.
-	// All timing inside nodes should use this, so they adjust when time_speed is changed.
+	// Nodes should use Node.getTime() to properly simulate clock desycnrhonization.
 	public double getTime(){
 		long current_time = System.currentTimeMillis();
 		net_time+=(current_time-last_time)*time_speed/1000.0;
@@ -80,7 +95,7 @@ public class Network implements Runnable{
 			Link l = links.get(from+"-"+to);
 			if(l == null){
 				l = new Link(from, to, 
-						latency_per_distance * distance(from,to),
+						latency_per_distance * distance(from,to) + rand.nextFloat()*max_random_latency,
 						default_link_rate, default_link_rate*10, getTime());
 				links.put(from+"-"+to, l);	
 			}
@@ -112,7 +127,7 @@ public class Network implements Runnable{
 	// Returns "" if there are no nodes.
 	public synchronized String RandomNode(){
 		if(nodes.size()==0) return "";
-		int which = (int)(nodes.size()*Math.random());
+		int which = (int)(nodes.size()*rand.nextFloat());
 		Iterator<String> i = nodes.keySet().iterator();
 		int w = 0;
 		while(w++ < which) i.next();
@@ -127,7 +142,7 @@ public class Network implements Runnable{
 				Transmission m = transmit_queue.poll();
 				// Verify receiver node is running before delivering message.
 				Node t = nodes.get(m.to);
-				if(t!=null && !t.stopped){
+				if(t!=null && !t.stopped && !m.dropped){
 					t.receive(m.from, m.message);
 				}
 			}
@@ -232,12 +247,14 @@ public class Network implements Runnable{
 		String from;
 		String to;
 		byte[] message;
+		boolean dropped;
 		public Transmission(String from, String to, byte[] message, double senttime, double arrivaltime){
 			this.from = from;
 			this.to = to;
 			this.message = message;
 			this.senttime = senttime;
 			this.arrivaltime = arrivaltime;
+			dropped = rand.nextFloat() < packet_drop_chance;
 		}
 		public int compareTo(Transmission o) {
 			return (int)(10000 * (arrivaltime - o.arrivaltime));
@@ -248,7 +265,11 @@ public class Network implements Runnable{
 			if( f != null && t != null && !f.stopped && !t.stopped){
 				double s = (getTime()-senttime) / (float)(arrivaltime - senttime);
 				float x = (float)((1-s) * f.x + s * t.x), y = (float)((1-s)*f.y + s*t.y);
-				g.setColor(Color.black);
+				if(dropped){
+					g.setColor(Color.red);
+				}else{
+					g.setColor(Color.black);
+				}
 				int oy = 10;
 				if(f.address.compareTo(t.address) < 0){
 					oy = -10;

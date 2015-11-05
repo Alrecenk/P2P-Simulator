@@ -52,7 +52,8 @@ implements ActionListener,MouseListener, KeyListener
 		Timer clock = new Timer(10, this); 
 		clock.start();
 
-		net = new Network(99999999, 0.001f);
+		// Unlimited link capacity and no packet drop chance, since this table implementation doesn't consider those problems.
+		net = new Network(99999999, 0.001f, .1f, 0, 100f, 12345);
 		// Go ahead and start with 2 nodes because 1 node initializes immediately.
 		addNode();
 		addNode();

@@ -57,7 +57,7 @@ public class HashNode extends Node{
 		return peer_list.size()!=0;
 	}
 
-	// This is the core method of the network. These nodes are purely event driven, so it just process received messages.
+	// This is the core method of the network. These nodes are purely event driven, so it just processes received messages.
 	public void run() {
 		while(!stopped){
 			// Constantly process received messages.

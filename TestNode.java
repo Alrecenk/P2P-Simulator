@@ -11,7 +11,7 @@ public class TestNode extends Node{
 	HashMap<String, Double> lastmessage;
 	double wait,lasttime;
 	int size;
-	int which ;
+	int which;
 
 	public TestNode(String id, ArrayList<String> target, double wait, int size){
 		super(id);
@@ -33,7 +33,7 @@ public class TestNode extends Node{
 						lastmessage.put(target.get(which), getTime());
 					}
 					double lasttime = lastmessage.get(target.get(which));
-					if(getTime() - lasttime > wait*10){
+					if(getTime() - lasttime > wait*30){
 						target.remove(which);
 					}else{
 						send(target.get(which), new byte[size]);
@@ -42,17 +42,16 @@ public class TestNode extends Node{
 				}
 				lasttime = time ;
 			}
-		}
-		// Add any node sending a message here to our targets.
-		while(message_queue.peek() !=null){
-			Message m = message_queue.poll();
-			if(!target.contains(m.from)){
-				target.add(m.from) ;
+			// Add any node sending a message here to our targets.
+			while(message_queue.peek() !=null){
+				Message m = message_queue.poll();
+				if(!target.contains(m.from)){
+					target.add(m.from) ;
+				}
+				// Keep track of last time we got a message for removing targets.
+				lastmessage.put(m.from, getTime());
 			}
-			// Keep track of last time we got a message for removing targets.
-			lastmessage.put(m.from, getTime());
+			try{Thread.sleep(2); } catch(InterruptedException e){}
 		}
-
-		try{Thread.sleep(2); } catch(InterruptedException e){}
 	}
 }

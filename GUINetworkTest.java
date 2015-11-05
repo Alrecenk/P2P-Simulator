@@ -42,7 +42,7 @@ implements ActionListener,MouseListener
 		Timer clock = new Timer(10, this); 
 		clock.start();
 
-		net = new Network(30, 0.01f);
+		net = new Network(30, 0.01f, .1f, 0.2f, 100f, 12345);
 		int amount=10;
 		// Start with some random nodes.
 		for(int k=0;k<amount;k++){
@@ -87,15 +87,13 @@ implements ActionListener,MouseListener
 			net.stop(net.RandomNode());
 		}
 		// Add nodes at random.
-		if(Math.random() < 0.002){
+		if(Math.random() < 0.003){
 			ArrayList<String> target = new ArrayList<String>();
 			for(int j=0;j<3;j++){
 				target.add(net.RandomNode());
 			}
 			Node node = new TestNode(""+(int)(Math.random()*10000), target, (float)(.1+Math.random()), 10);
 			net.addNode(node, (float)(100 + Math.random()*800), (float)(100 + Math.random()*500),20);
-			Thread t = new Thread(node);
-			t.start();
 		}
 		repaint();
 	}

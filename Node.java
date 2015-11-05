@@ -23,6 +23,7 @@ public abstract class Node implements Runnable{
 	public float maximum_flow; // bytes at maximum flow
 	public float flow; // current available flow
 	public double last_time; // time flow was last updated
+	public double clock_offset; // The difference between this node's clock and the network clock.
 
 	public Node(String address){
 		this.address = address;
@@ -41,9 +42,10 @@ public abstract class Node implements Runnable{
 		}
 	}
 	
-	// Use this instead of system time. It allows the rate of time passage to be adjusted at the network level.
+	// Use this for any time keeping. It allows the rate of time passage to be adjusted at the network level.
+	// It also gives each node clock variability to simulate unsynchronized clocks over the network.
 	public double getTime(){
-		return network.getTime();
+		return network.getTime() + clock_offset;
 	}
 	
 	// Stops the node. the network will stop communicating with a stopped node.
